@@ -84,5 +84,29 @@ describe("Multi Signature Wallet", () =>{
 
             expect(BigInt(finalBalance) - BigInt(initialBalance)).to.equal(ethers.utils.parseEther("1"))
        })
+       it("checks the proposal was cancelled", async () =>{
+            await MultiSig.connect(deployer).proposeNewTransaction(user1.address, ethers.utils.parseEther("1"))
+
+            await MultiSig.connect(deployer).cancelProposal(2)
+
+            proposal = await MultiSig.proposals(2)
+
+            expect(proposal.propStatus).to.equal(2)
+       })
+
+        describe("fail cases", () =>{
+            it("checks the fail case for Signer only", async () =>{
+                await expect(MultiSig.connect(user2).proposeNewSigner(user1.address)).to.be.reverted;
+            })
+            it("checks the fail case for expired/cancelled proposals", async () =>{
+                await MultiSig.connect(deployer).proposeNewTransaction(user1.address, ethers.utils.parseEther("1"))
+
+                await moveTime(90000);
+                proposal = await MultiSig.proposals(2)
+
+                await expect(MultiSig.connect(deployer).executeProposal(2)).to.be.reverted;
+            })
+            it("checks")
+       })
     })  
 })

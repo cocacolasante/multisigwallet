@@ -101,7 +101,9 @@ contract MultisigWallet {
 
     function executeProposal(uint _propNum) public SignerOnly checkTimeRemaining(_propNum){
         
+        checkIfValid(_propNum);
         uint minVotes = getMinReqSigs();
+
         require(proposals[_propNum].signatures >= minVotes, "not enough votes");
         require(proposals[_propNum].propStatus == ProposalStatus.pending, "proposal no longer pending" );
 
@@ -127,6 +129,8 @@ contract MultisigWallet {
 
     // cancel proposal
     function cancelProposal(uint _propNum) public SignerOnly {
+        uint minVotes = getMinReqSigs();
+        require(proposals[_propNum].signatures < minVotes || proposals[_propNum].signatures == 0);
         proposals[_propNum].propStatus = ProposalStatus.canceled;
     }
 
@@ -166,7 +170,7 @@ contract MultisigWallet {
 
     function checkIfValid(uint _propNum) internal {
         uint minVotes = getMinReqSigs();
-        if(block.timestamp >= proposals[_propNum].expiration && proposals[_propNum].propStatus != ProposalStatus.canceled && proposals[_propNum].propStatus != ProposalStatus.executed && proposals[_propNum].signatures < minVotes){
+        if(block.timestamp >= proposals[_propNum].expiration && (proposals[_propNum].signatures < minVotes || proposals[_propNum].signatures == 0)){
             proposals[_propNum].propStatus = ProposalStatus.canceled;
         }
     }
