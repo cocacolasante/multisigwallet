@@ -36,7 +36,7 @@ contract MultisigWallet {
     }
 
 
-    // ENUMS
+    // ENUMS for type and status
     enum ProposalType{sendFunds, addNewOwner, signTransaction}
     enum ProposalStatus{pending, executed, votedDown, canceled}
 
@@ -54,6 +54,7 @@ contract MultisigWallet {
         isSigner[msg.sender] = true;
     }
 
+    // proposing a new signer
     function proposeNewSigner(address newOwner) public SignerOnly {
         proposalNumber++;
 
@@ -65,6 +66,7 @@ contract MultisigWallet {
 
     }
 
+    //proposing a send funds transaction
     function proposeNewTransaction(address targetAddress, uint _amount) public SignerOnly{
         require(address(this).balance > _amount, "not enough funds");
         proposalNumber++;
@@ -74,7 +76,7 @@ contract MultisigWallet {
     }
 
 
-
+    // vote for a proposal
 
     function forVote(uint _propNum) public SignerOnly{
         require(hasVoted[_propNum][msg.sender] == false, "already voted");
@@ -86,9 +88,12 @@ contract MultisigWallet {
 
     }
 
+    // execute function that determining the type of proposal would determine which helper function is called
+
     function executeProposal(uint _propNum) public SignerOnly{
         uint minVotes = getMinReqSigs();
         require(proposals[_propNum].signatures >= minVotes);
+        require(proposals[_propNum].propStatus == ProposalStatus.pending );
 
         Proposal storage tempProp = proposals[_propNum];
 
@@ -96,6 +101,7 @@ contract MultisigWallet {
 
         if(propType == ProposalType.sendFunds){
             // write send funds function
+            sendEther(_propNum);
 
 
         } else if(propType == ProposalType.addNewOwner){
@@ -110,13 +116,25 @@ contract MultisigWallet {
     }
 
 
-
+    // internal helper functions
     // adding new wallet to signers after approval -- internal function
     function addWalletToArray(uint _propNum) internal {
         signers.push(proposals[_propNum].targetAddress);
 
         proposals[_propNum].propStatus = ProposalStatus.executed;
         proposals[_propNum].executed = true;
+
+    }
+
+    // send ether helper function
+
+    function sendEther(uint _propNum) internal {
+        address payee = proposals[_propNum].targetAddress;
+
+        uint amount = proposals[_propNum].amount;
+
+        payable(payee).transfer(amount);
+        
 
     }
 

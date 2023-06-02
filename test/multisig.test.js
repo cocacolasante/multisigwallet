@@ -66,8 +66,19 @@ describe("Multi Signature Wallet", () =>{
               // Wait for the transaction to be mined
             await transaction.wait();
             await MultiSig.connect(deployer).proposeNewTransaction(user2.address, ethers.utils.parseEther("1"))
-
+            await MultiSig.connect(deployer).forVote(1);
+            
         })
-       
+        it("checks the ether was sent", async () =>{
+            let initialBalance = await ethers.provider.getBalance(user2.address);
+            
+            
+            await MultiSig.connect(deployer).executeProposal(1);
+
+            let finalBalance = await ethers.provider.getBalance(user2.address)
+            
+
+            expect(BigInt(finalBalance) - BigInt(initialBalance)).to.equal(ethers.utils.parseEther("1"))
+       })
     })  
 })
