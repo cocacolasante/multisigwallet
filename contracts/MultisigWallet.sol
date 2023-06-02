@@ -9,7 +9,6 @@ contract MultisigWallet {
     uint private proposalNumber;
     address[] public signers;
 
-    uint public requiredSignatures;
 
     uint public votingTime = 86400; // 1 week in seconds
 
@@ -20,17 +19,10 @@ contract MultisigWallet {
     mapping(uint=>Proposal) public proposals;
     mapping(uint =>mapping(address => bool)) public hasVoted;
 
-    struct Transaction{
-        address payable payee;
-        uint amount;
-        bool executed;
-    }
-
     struct Proposal{
         ProposalType proposalType;
         ProposalStatus propStatus;
         uint signatures;
-        bool executed;
         address targetAddress;
         uint proposalNum;
         uint amount; // only if applicable
@@ -38,10 +30,15 @@ contract MultisigWallet {
 
     }
 
+    event NewProposal(uint propNum, uint targetAddress, uint expiration);
+    event NewVote(uint propNum);
+    event CancelProp(uint propNum);
+    event PassTransaction(uint propNum, uint signatures);
+
 
     // ENUMS for type and status
     enum ProposalType{sendFunds, addNewOwner}
-    enum ProposalStatus{pending, executed, votedDown, canceled}
+    enum ProposalStatus{pending, executed, canceled}
 
 
 
@@ -53,6 +50,7 @@ contract MultisigWallet {
     modifier checkTimeRemaining(uint _propNum) {
         require(block.timestamp >= proposals[_propNum].expiration, "time still remaining");
         require(proposals[_propNum].propStatus != ProposalStatus.canceled, "proposal already cancelled");
+        require(proposals[_propNum].propStatus != ProposalStatus.executed, "already executed");
         _;
     }
 
@@ -69,7 +67,7 @@ contract MultisigWallet {
 
         // initializing temp prop to add to mapping
         
-        Proposal memory tempProp = Proposal(ProposalType.addNewOwner, ProposalStatus.pending, 0, false, newOwner, proposalNumber, 0, block.timestamp + votingTime);
+        Proposal memory tempProp = Proposal(ProposalType.addNewOwner, ProposalStatus.pending, 0, newOwner, proposalNumber, 0, block.timestamp + votingTime);
 
         proposals[proposalNumber] = tempProp;
 
@@ -79,7 +77,7 @@ contract MultisigWallet {
     function proposeNewTransaction(address targetAddress, uint _amount) public SignerOnly{
         require(address(this).balance > _amount, "not enough funds");
         proposalNumber++;
-        Proposal memory tempProp = Proposal(ProposalType.sendFunds, ProposalStatus.pending, 0, false, targetAddress, proposalNumber, _amount, block.timestamp + votingTime);
+        Proposal memory tempProp = Proposal(ProposalType.sendFunds, ProposalStatus.pending, 0, targetAddress, proposalNumber, _amount, block.timestamp + votingTime);
         proposals[proposalNumber] = tempProp;
 
     }
@@ -89,6 +87,8 @@ contract MultisigWallet {
 
     function forVote(uint _propNum) public SignerOnly{
         require(hasVoted[_propNum][msg.sender] == false, "already voted");
+        checkIfValid(_propNum);
+        require(proposals[_propNum].propStatus == ProposalStatus.pending, "voting no longer open");
 
         proposals[_propNum].signatures++;
 
@@ -125,6 +125,13 @@ contract MultisigWallet {
 
     }
 
+    // cancel proposal
+    function cancelProposal(uint _propNum) public SignerOnly {
+        proposals[_propNum].propStatus = ProposalStatus.canceled;
+    }
+
+    
+
 
     // internal helper functions
     // adding new wallet to signers after approval -- internal function
@@ -132,7 +139,6 @@ contract MultisigWallet {
         signers.push(proposals[_propNum].targetAddress);
 
         proposals[_propNum].propStatus = ProposalStatus.executed;
-        proposals[_propNum].executed = true;
 
     }
 
@@ -158,7 +164,12 @@ contract MultisigWallet {
     // check if time frame has passed
 
 
-
+    function checkIfValid(uint _propNum) internal {
+        uint minVotes = getMinReqSigs();
+        if(block.timestamp >= proposals[_propNum].expiration && proposals[_propNum].propStatus != ProposalStatus.canceled && proposals[_propNum].propStatus != ProposalStatus.executed && proposals[_propNum].signatures < minVotes){
+            proposals[_propNum].propStatus = ProposalStatus.canceled;
+        }
+    }
 
 
 
