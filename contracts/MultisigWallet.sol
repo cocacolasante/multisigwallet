@@ -11,6 +11,8 @@ contract MultisigWallet {
 
     uint public requiredSignatures;
 
+    uint public votingTime = 86400; // 1 week in seconds
+
     //address to bool for is allowed to sign
     mapping(address => bool) public isSigner;
 
@@ -32,18 +34,25 @@ contract MultisigWallet {
         address targetAddress;
         uint proposalNum;
         uint amount; // only if applicable
+        uint expiration;
 
     }
 
 
     // ENUMS for type and status
-    enum ProposalType{sendFunds, addNewOwner, signTransaction}
+    enum ProposalType{sendFunds, addNewOwner}
     enum ProposalStatus{pending, executed, votedDown, canceled}
 
 
 
     modifier SignerOnly {
         require(isSigner[msg.sender] == true, "only signer");
+        _;
+    }
+
+    modifier checkTimeRemaining(uint _propNum) {
+        require(block.timestamp >= proposals[_propNum].expiration, "time still remaining");
+        require(proposals[_propNum].propStatus != ProposalStatus.canceled, "proposal already cancelled");
         _;
     }
 
@@ -60,7 +69,7 @@ contract MultisigWallet {
 
         // initializing temp prop to add to mapping
         
-        Proposal memory tempProp = Proposal(ProposalType.addNewOwner, ProposalStatus.pending, 0, false, newOwner, proposalNumber, 0);
+        Proposal memory tempProp = Proposal(ProposalType.addNewOwner, ProposalStatus.pending, 0, false, newOwner, proposalNumber, 0, block.timestamp + votingTime);
 
         proposals[proposalNumber] = tempProp;
 
@@ -70,7 +79,7 @@ contract MultisigWallet {
     function proposeNewTransaction(address targetAddress, uint _amount) public SignerOnly{
         require(address(this).balance > _amount, "not enough funds");
         proposalNumber++;
-        Proposal memory tempProp = Proposal(ProposalType.sendFunds, ProposalStatus.pending, 0, false, targetAddress, proposalNumber, _amount);
+        Proposal memory tempProp = Proposal(ProposalType.sendFunds, ProposalStatus.pending, 0, false, targetAddress, proposalNumber, _amount, block.timestamp + votingTime);
         proposals[proposalNumber] = tempProp;
 
     }
@@ -90,10 +99,11 @@ contract MultisigWallet {
 
     // execute function that determining the type of proposal would determine which helper function is called
 
-    function executeProposal(uint _propNum) public SignerOnly{
+    function executeProposal(uint _propNum) public SignerOnly checkTimeRemaining(_propNum){
+        
         uint minVotes = getMinReqSigs();
-        require(proposals[_propNum].signatures >= minVotes);
-        require(proposals[_propNum].propStatus == ProposalStatus.pending );
+        require(proposals[_propNum].signatures >= minVotes, "not enough votes");
+        require(proposals[_propNum].propStatus == ProposalStatus.pending, "proposal no longer pending" );
 
         Proposal storage tempProp = proposals[_propNum];
 
@@ -108,8 +118,8 @@ contract MultisigWallet {
             // write add new owner function
             addWalletToArray(_propNum);
 
-        } else if (propType == ProposalType.signTransaction){
-            // write sign transaction function
+        }else {
+            return;
         }
         
 
@@ -144,6 +154,15 @@ contract MultisigWallet {
     function getMinReqSigs() internal view returns(uint){
         return signers.length /2;
     }
+
+    // check if time frame has passed
+
+
+
+
+
+
+
 
     
     function receiveFunds() public payable {

@@ -1,5 +1,6 @@
 const { expect } = require("chai");
 const {ethers} = require("hardhat");
+const {moveTime} = require("../utils/moveTime.js");
 
 describe("Multi Signature Wallet", () =>{
     let MultiSig, deployer, user1, user2, user3, proposal
@@ -36,7 +37,10 @@ describe("Multi Signature Wallet", () =>{
         })
         it("checks the execute vote function to add new wallet", async () =>{
             await MultiSig.connect(deployer).forVote(1)
+            await moveTime(90000);
+
             await MultiSig.connect(deployer).executeProposal(1);
+
             expect(await MultiSig.signers(1)).to.equal(user1.address)
         })
     })
@@ -72,7 +76,7 @@ describe("Multi Signature Wallet", () =>{
         it("checks the ether was sent", async () =>{
             let initialBalance = await ethers.provider.getBalance(user2.address);
             
-            
+            await moveTime(90000);
             await MultiSig.connect(deployer).executeProposal(1);
 
             let finalBalance = await ethers.provider.getBalance(user2.address)
