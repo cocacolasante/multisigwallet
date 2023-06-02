@@ -34,5 +34,40 @@ describe("Multi Signature Wallet", () =>{
             
 
         })
+        it("checks the execute vote function to add new wallet", async () =>{
+            await MultiSig.connect(deployer).forVote(1)
+            await MultiSig.connect(deployer).executeProposal(1);
+            expect(await MultiSig.signers(1)).to.equal(user1.address)
+        })
     })
+    describe("Transfer funds", () =>{
+        
+        it("propose a new transfer", async () =>{
+            const transaction = await deployer.sendTransaction({
+                to: MultiSig.address,
+                value: ethers.utils.parseEther('2'),
+              });
+          
+              // Wait for the transaction to be mined
+            await transaction.wait();
+            await MultiSig.connect(deployer).proposeNewTransaction(user2.address, ethers.utils.parseEther("1"))
+
+            proposal = await MultiSig.proposals(1)
+            expect(proposal.targetAddress).to.equal(user2.address)
+            
+
+        })
+        beforeEach(async () =>{
+            const transaction = await deployer.sendTransaction({
+                to: MultiSig.address,
+                value: ethers.utils.parseEther('2'),
+              });
+          
+              // Wait for the transaction to be mined
+            await transaction.wait();
+            await MultiSig.connect(deployer).proposeNewTransaction(user2.address, ethers.utils.parseEther("1"))
+
+        })
+       
+    })  
 })
