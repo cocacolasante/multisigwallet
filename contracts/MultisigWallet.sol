@@ -162,7 +162,7 @@ contract MultisigWallet {
 
     // internal function to get minimum required signatures
     function getMinReqSigs() internal view returns(uint){
-        return signers.length /2;
+        return signers.length / 2;
     }
 
     // check if time frame has passed

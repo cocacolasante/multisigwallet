@@ -106,7 +106,7 @@ describe("Multi Signature Wallet", () =>{
 
                 await expect(MultiSig.connect(deployer).executeProposal(2)).to.be.reverted;
             })
-            it("checks")
+            it("checks ")
        })
     })  
 })
